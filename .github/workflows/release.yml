@@ -75,8 +75,9 @@ jobs:
           Set-Content obfuscar.xml $xml
           Write-Host "Updated obfuscar.xml with path: $relativePath"
 
-          # Run obfuscation
-          obfuscar obfuscar.xml
+          # Run obfuscation (global tool path)
+          $obfuscar = Join-Path $env:USERPROFILE '.dotnet\tools\obfuscar.exe'
+          & $obfuscar obfuscar.xml
 
           # Replace original DLL with obfuscated version
           Copy-Item "$outputDir\obfuscated\Expedition.dll" "$outputDir\Expedition.dll" -Force
