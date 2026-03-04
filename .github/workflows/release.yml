@@ -82,7 +82,7 @@ jobs:
           Write-Host "Updated obfuscar.xml with path: $relativePath"
 
           # Run obfuscation
-          obfuscar obfuscar.xml
+          obfuscar.console obfuscar.xml
 
           # Replace original DLL with obfuscated version
           Copy-Item "$outputDir\obfuscated\Expedition.dll" "$outputDir\Expedition.dll" -Force
