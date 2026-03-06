@@ -903,41 +903,49 @@ public sealed class WorkflowEngine : IDisposable
         // --- Phase 3b: For difficult recipes, ensure food/pot buffs are active before starting ---
         // ConsumableManager runs every frame during PreparingCraft and will auto-apply buffs.
         // We wait here to give it time to apply them before dispatching to Artisan.
-        var hasDifficultRecipes = ResolvedRecipe?.CraftOrder.Any(s => s.Recipe.IsDifficult) ?? false;
-        if (hasDifficultRecipes && (config.AutoFood || config.AutoPots))
+        try
         {
-            if (!buffWaitStarted)
+            var hasDifficultRecipes = ResolvedRecipe?.CraftOrder.Any(s => s.Recipe.IsDifficult) ?? false;
+            if (hasDifficultRecipes && (config.AutoFood || config.AutoPots))
             {
-                buffWaitStarted = true;
-                buffWaitStartTime = DateTime.Now;
-                // Trigger an immediate consumable scan/use
-                Expedition.Instance.ConsumableManager.ConsumeNow(
-                    Expedition.Instance.BuffTracker, isGatherer: false,
-                    config.AutoFood, config.AutoPots);
-                SetStatus("Applying food/pots for difficult recipe...");
-                return;
-            }
-
-            var buffTracker = Expedition.Instance.BuffTracker;
-            var foodOk = !config.AutoFood || buffTracker.GetFoodBuffRemainingSeconds() > 30f;
-            var potOk = !config.AutoPots || buffTracker.GetMedicineBuffRemainingSeconds() > 30f;
-            var elapsed = (DateTime.Now - buffWaitStartTime).TotalSeconds;
-
-            if (!foodOk || !potOk)
-            {
-                if (elapsed < BuffWaitTimeoutSeconds)
+                if (!buffWaitStarted)
                 {
-                    SetStatus($"Waiting for buffs ({elapsed:F0}s)... Food: {(foodOk ? "OK" : "pending")}, Pot: {(potOk ? "OK" : "pending")}");
+                    buffWaitStarted = true;
+                    buffWaitStartTime = DateTime.Now;
+                    // Trigger an immediate consumable scan/use
+                    Expedition.Instance.ConsumableManager.ConsumeNow(
+                        Expedition.Instance.BuffTracker, isGatherer: false,
+                        config.AutoFood, config.AutoPots);
+                    SetStatus("Applying food/pots for difficult recipe...");
                     return;
                 }
 
-                // Timed out — proceed anyway with a warning
-                AddLog("[Warning] Buff wait timed out. Proceeding without full buffs. Check your food/pot inventory.");
+                var buffTracker = Expedition.Instance.BuffTracker;
+                var foodOk = !config.AutoFood || buffTracker.GetFoodBuffRemainingSeconds() > 30f;
+                var potOk = !config.AutoPots || buffTracker.GetMedicineBuffRemainingSeconds() > 30f;
+                var elapsed = (DateTime.Now - buffWaitStartTime).TotalSeconds;
+
+                if (!foodOk || !potOk)
+                {
+                    if (elapsed < BuffWaitTimeoutSeconds)
+                    {
+                        SetStatus($"Waiting for buffs ({elapsed:F0}s)... Food: {(foodOk ? "OK" : "pending")}, Pot: {(potOk ? "OK" : "pending")}");
+                        return;
+                    }
+
+                    // Timed out — proceed anyway with a warning
+                    AddLog("[Warning] Buff wait timed out. Proceeding without full buffs. Check your food/pot inventory.");
+                }
+                else
+                {
+                    AddLog("Food/pot buffs confirmed active for difficult recipe.");
+                }
             }
-            else
-            {
-                AddLog("Food/pot buffs confirmed active for difficult recipe.");
-            }
+        }
+        catch (Exception ex)
+        {
+            DalamudApi.Log.Warning($"[Workflow] Buff wait check failed: {ex.Message}. Proceeding without buff wait.");
+            buffWaitStarted = true; // Skip on future calls
         }
 
         // --- Phase 4: Start crafting ---

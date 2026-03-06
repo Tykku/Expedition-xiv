@@ -408,40 +408,47 @@ public sealed class Expedition : IDalamudPlugin
         // Skip updates when not activated
         if (!ActivationService.IsActivated) return;
 
-        WorkflowEngine.Update();
-        DiademNavigator.Update();
-        FishingSession.Update();
-        ScripFarmingSession.Update();
-
-        // Cosmic fishing preset injection — monitors ICE state and overrides AutoHook presets
-        if (Config.CosmicFishingOverrideEnabled && CosmicTab.IsSessionActive)
-            CosmicFishingMonitor.Update(Config.CosmicFishingInjectionDelayMs);
-
-        // Auto-consume food/pots during Cosmic Exploration sessions.
-        // Runs every game tick (~16ms) for maximum responsiveness — the transition
-        // window before crafting flags are set can be <100ms.
-        if (CosmicTab.IsSessionActive && (Config.CosmicAutoFood || Config.CosmicAutoPots))
+        try
         {
-            var isGatherer = JobSwitchManager.IsOnGatherer();
-            ConsumableManager.Update(BuffTracker, isGatherer, Config.CosmicAutoFood, Config.CosmicAutoPots);
+            WorkflowEngine.Update();
+            DiademNavigator.Update();
+            FishingSession.Update();
+            ScripFarmingSession.Update();
+
+            // Cosmic fishing preset injection — monitors ICE state and overrides AutoHook presets
+            if (Config.CosmicFishingOverrideEnabled && CosmicTab.IsSessionActive)
+                CosmicFishingMonitor.Update(Config.CosmicFishingInjectionDelayMs);
+
+            // Auto-consume food/pots during Cosmic Exploration sessions.
+            // Runs every game tick (~16ms) for maximum responsiveness — the transition
+            // window before crafting flags are set can be <100ms.
+            if (CosmicTab.IsSessionActive && (Config.CosmicAutoFood || Config.CosmicAutoPots))
+            {
+                var isGatherer = JobSwitchManager.IsOnGatherer();
+                ConsumableManager.Update(BuffTracker, isGatherer, Config.CosmicAutoFood, Config.CosmicAutoPots);
+            }
+
+            // Deferred ICE start — enables ICE after consumables have been used
+            CosmicTab.CheckDeferredIceStart(this);
+
+            // Auto-consume food/pots during normal workflow (Gathering/Crafting phases)
+            if ((Config.AutoFood || Config.AutoPots) &&
+                WorkflowEngine.CurrentState is Workflow.WorkflowState.Gathering
+                                            or Workflow.WorkflowState.Crafting
+                                            or Workflow.WorkflowState.PreparingGather
+                                            or Workflow.WorkflowState.PreparingCraft)
+            {
+                var isGatherer = JobSwitchManager.IsOnGatherer();
+                ConsumableManager.Update(BuffTracker, isGatherer, Config.AutoFood, Config.AutoPots);
+            }
+
+            if (Config.InsightsAutoRefresh)
+                InsightsEngine.Update();
         }
-
-        // Deferred ICE start — enables ICE after consumables have been used
-        CosmicTab.CheckDeferredIceStart(this);
-
-        // Auto-consume food/pots during normal workflow (Gathering/Crafting phases)
-        if ((Config.AutoFood || Config.AutoPots) &&
-            WorkflowEngine.CurrentState is Workflow.WorkflowState.Gathering
-                                        or Workflow.WorkflowState.Crafting
-                                        or Workflow.WorkflowState.PreparingGather
-                                        or Workflow.WorkflowState.PreparingCraft)
+        catch (Exception ex)
         {
-            var isGatherer = JobSwitchManager.IsOnGatherer();
-            ConsumableManager.Update(BuffTracker, isGatherer, Config.AutoFood, Config.AutoPots);
+            DalamudApi.Log.Error(ex, "[Expedition] Unhandled exception in framework update");
         }
-
-        if (Config.InsightsAutoRefresh)
-            InsightsEngine.Update();
     }
 
     private void DrawUI()
