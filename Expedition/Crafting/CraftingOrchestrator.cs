@@ -121,7 +121,8 @@ public sealed class CraftingOrchestrator
     /// <summary>
     /// Builds the crafting queue from a resolved recipe's craft order.
     /// The order is already dependency-sorted (sub-recipes first).
-    /// Solver is selected per-task: collectables use CollectablePreferredSolver,
+    /// Solver is selected per-task: difficult recipes (collectables, expert, starred
+    /// master recipes, high stat requirements) use CollectablePreferredSolver,
     /// other recipes use the general PreferredSolver.
     /// </summary>
     public void BuildQueue(ResolvedRecipe resolved, string? preferredSolver = null,
@@ -141,9 +142,10 @@ public sealed class CraftingOrchestrator
 
         foreach (var step in resolved.CraftOrder)
         {
-            // Smart solver selection: collectables/expert recipes get the collectable solver,
-            // other recipes get the general solver.
-            var solver = (step.Recipe.IsCollectable || step.Recipe.IsExpert)
+            // Smart solver selection: any difficult recipe (collectable, expert, starred,
+            // high-level master, demanding stats) gets the proper solver for optimal rotation.
+            // Simple recipes use the general solver (or Artisan's default).
+            var solver = step.Recipe.IsDifficult
                 && !string.IsNullOrEmpty(collectablePreferredSolver)
                     ? collectablePreferredSolver
                     : preferredSolver;
@@ -155,7 +157,7 @@ public sealed class CraftingOrchestrator
             DalamudApi.Log.Debug(
                 $"[Crafting] Queued {task.ItemName} x{task.Quantity}" +
                 $" (collectable={task.IsCollectable}, expert={task.IsExpert}," +
-                $" solver={solver ?? "default"})");
+                $" difficult={task.IsDifficult}, solver={solver ?? "default"})");
         }
 
         State = taskQueue.Count > 0 ? CraftingOrchestratorState.Ready : CraftingOrchestratorState.Idle;
@@ -699,13 +701,13 @@ public sealed class CraftingOrchestrator
             ipc.Artisan.ChangeSolver(task.RecipeId, task.PreferredSolver, temporary: true);
             DalamudApi.Log.Information(
                 $"[Crafting] Solver set to '{task.PreferredSolver}' for {task.ItemName}" +
-                $" (collectable={task.IsCollectable}, expert={task.IsExpert})");
+                $" (collectable={task.IsCollectable}, expert={task.IsExpert}, difficult={task.IsDifficult})");
         }
         else
         {
             DalamudApi.Log.Information(
                 $"[Crafting] Using Artisan's default solver for {task.ItemName}" +
-                $" (collectable={task.IsCollectable}, expert={task.IsExpert})");
+                $" (collectable={task.IsCollectable}, expert={task.IsExpert}, difficult={task.IsDifficult})");
         }
 
         StatusMessage = $"Crafting {task.ItemName} x{task.Quantity} ({RecipeResolverService.GetCraftTypeName(task.CraftTypeId)})...";

@@ -14,6 +14,7 @@ public sealed class CraftingTask
     public int QuantityCrafted { get; set; }
     public bool IsCollectable { get; init; }
     public bool IsExpert { get; init; }
+    public bool IsDifficult { get; init; }
     public int CraftTypeId { get; init; }
     public string? PreferredSolver { get; init; }
     public CraftingTaskStatus Status { get; set; } = CraftingTaskStatus.Pending;
@@ -33,6 +34,7 @@ public sealed class CraftingTask
             Quantity = step.Quantity,
             IsCollectable = step.Recipe.IsCollectable,
             IsExpert = step.Recipe.IsExpert,
+            IsDifficult = step.Recipe.IsDifficult,
             CraftTypeId = step.Recipe.CraftTypeId,
             PreferredSolver = preferredSolver,
         };

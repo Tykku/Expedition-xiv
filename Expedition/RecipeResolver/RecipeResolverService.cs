@@ -494,6 +494,7 @@ public sealed class RecipeResolverService
             RecipeDurability = recipeLevelRow.Durability * recipe.DurabilityFactor / 100,
             SuggestedCraftsmanship = recipeLevelRow.SuggestedCraftsmanship,
             SuggestedControl = 0, // Field removed from RecipeLevelTable in latest Lumina
+            Stars = recipeLevelRow.Stars,
             RequiresMasterBook = recipe.SecretRecipeBook.RowId != 0,
             MasterBookId = recipe.SecretRecipeBook.RowId,
             Ingredients = ingredients,

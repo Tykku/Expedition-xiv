@@ -46,6 +46,9 @@ public sealed class RecipeNode
     /// <summary>Suggested control for HQ/collectability targets.</summary>
     public int SuggestedControl { get; init; }
 
+    /// <summary>Star rating of the recipe (0-4). Higher stars = harder recipe.</summary>
+    public int Stars { get; init; }
+
     /// <summary>True if this recipe requires a master recipe book to be unlocked.</summary>
     public bool RequiresMasterBook { get; init; }
 
@@ -57,4 +60,13 @@ public sealed class RecipeNode
 
     /// <summary>Sub-recipes (ingredients that are themselves craftable).</summary>
     public List<RecipeNode> SubRecipes { get; init; } = new();
+
+    /// <summary>
+    /// True if this recipe is considered difficult and should use a proper solver
+    /// rather than Artisan's default rotation. Covers starred master recipes,
+    /// high-level master recipes, and anything with demanding stat requirements.
+    /// </summary>
+    public bool IsDifficult => IsExpert || Stars > 0
+        || (RequiresMasterBook && RequiredLevel >= 90)
+        || SuggestedCraftsmanship >= 3700;
 }

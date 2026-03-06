@@ -79,6 +79,11 @@ public sealed class WorkflowEngine : IDisposable
     private DateTime teleportSentTime;
     private const double TeleportTimeoutSeconds = 30.0;
 
+    // Buff-wait state for difficult recipes
+    private bool buffWaitStarted;
+    private DateTime buffWaitStartTime;
+    private const double BuffWaitTimeoutSeconds = 15.0;
+
     public event Action<WorkflowState>? OnStateChanged;
     public event Action<string>? OnStatusChanged;
     public event Action? OnCompleted;
@@ -895,6 +900,46 @@ public sealed class WorkflowEngine : IDisposable
             return;
         }
 
+        // --- Phase 3b: For difficult recipes, ensure food/pot buffs are active before starting ---
+        // ConsumableManager runs every frame during PreparingCraft and will auto-apply buffs.
+        // We wait here to give it time to apply them before dispatching to Artisan.
+        var hasDifficultRecipes = ResolvedRecipe?.CraftOrder.Any(s => s.Recipe.IsDifficult) ?? false;
+        if (hasDifficultRecipes && (config.AutoFood || config.AutoPots))
+        {
+            if (!buffWaitStarted)
+            {
+                buffWaitStarted = true;
+                buffWaitStartTime = DateTime.Now;
+                // Trigger an immediate consumable scan/use
+                Expedition.Instance.ConsumableManager.ConsumeNow(
+                    Expedition.Instance.BuffTracker, isGatherer: false,
+                    config.AutoFood, config.AutoPots);
+                SetStatus("Applying food/pots for difficult recipe...");
+                return;
+            }
+
+            var buffTracker = Expedition.Instance.BuffTracker;
+            var foodOk = !config.AutoFood || buffTracker.GetFoodBuffRemainingSeconds() > 30f;
+            var potOk = !config.AutoPots || buffTracker.GetMedicineBuffRemainingSeconds() > 30f;
+            var elapsed = (DateTime.Now - buffWaitStartTime).TotalSeconds;
+
+            if (!foodOk || !potOk)
+            {
+                if (elapsed < BuffWaitTimeoutSeconds)
+                {
+                    SetStatus($"Waiting for buffs ({elapsed:F0}s)... Food: {(foodOk ? "OK" : "pending")}, Pot: {(potOk ? "OK" : "pending")}");
+                    return;
+                }
+
+                // Timed out — proceed anyway with a warning
+                AddLog("[Warning] Buff wait timed out. Proceeding without full buffs. Check your food/pot inventory.");
+            }
+            else
+            {
+                AddLog("Food/pot buffs confirmed active for difficult recipe.");
+            }
+        }
+
         // --- Phase 4: Start crafting ---
         SetStatus("Preparing crafting queue...");
 
@@ -1084,6 +1129,7 @@ public sealed class WorkflowEngine : IDisposable
         craftPrepCompleted = false;
         teleportCommandSent = false;
         teleportArrived = false;
+        buffWaitStarted = false;
         dependencyWaitStart = null;
     }
 
