@@ -129,15 +129,11 @@ jobs:
         shell: pwsh
         run: |
           $ver = "${{ steps.version.outputs.version }}"
-          $repo = Get-Content repo.json -Raw | ConvertFrom-Json
-
-          foreach ($plugin in $repo) {
-            if ($plugin.InternalName -eq "Expedition") {
-              $plugin.AssemblyVersion = $ver
-            }
-          }
-
-          $repo | ConvertTo-Json -Depth 10 | Set-Content repo.json
+          $repoText = Get-Content repo.json -Raw
+          $repoText = $repoText -replace '"AssemblyVersion":\s*"[^"]*"', "`"AssemblyVersion`": `"$ver`""
+          $tag = "v$ver"
+          $repoText = $repoText -replace 'releases/download/v[^/]+/Expedition-v[^"]+\.zip', "releases/download/$tag/Expedition-$tag.zip"
+          Set-Content repo.json $repoText
 
       - name: Commit repo.json update
         shell: bash
