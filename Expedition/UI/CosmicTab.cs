@@ -315,6 +315,7 @@ public static class CosmicTab
                 _ => 0,
             };
             string[] modeNames = ["Standard", "Relic XP Grind", "Level Mode", "Agenda Mode"];
+            Theme.PushFrameStyle();
             if (ImGui.Combo("##iceMode", ref comboIndex, modeNames, modeNames.Length))
             {
                 iceMode = comboIndex switch
@@ -326,6 +327,7 @@ public static class CosmicTab
                 };
                 SaveConfig(Expedition.Config);
             }
+            Theme.PopFrameStyle();
 
             ImGui.Spacing();
 
@@ -375,16 +377,17 @@ public static class CosmicTab
                 ImGui.TextColored(Theme.TextMuted, $"  ICE is currently in: {IPC.CosmicIpc.GetModeName(currentMode)}");
                 ImGui.Spacing();
 
-                if (Theme.SecondaryButton("Standard", new Vector2(100, 28)))
+                // Highlight the active mode button
+                if (ModeButton("Standard", IPC.CosmicIpc.ModeStandard, currentMode, new Vector2(100, 28)))
                     ice.SetMode(IPC.CosmicIpc.ModeStandard);
                 ImGui.SameLine(0, Theme.PadSmall);
-                if (Theme.SecondaryButton("Relic XP", new Vector2(100, 28)))
+                if (ModeButton("Relic XP", IPC.CosmicIpc.ModeRelic, currentMode, new Vector2(100, 28)))
                     ice.SetMode(IPC.CosmicIpc.ModeRelic);
                 ImGui.SameLine(0, Theme.PadSmall);
-                if (Theme.SecondaryButton("Level", new Vector2(80, 28)))
+                if (ModeButton("Level", IPC.CosmicIpc.ModeLevel, currentMode, new Vector2(80, 28)))
                     ice.SetMode(IPC.CosmicIpc.ModeLevel);
                 ImGui.SameLine(0, Theme.PadSmall);
-                if (Theme.SecondaryButton("Agenda", new Vector2(90, 28)))
+                if (ModeButton("Agenda", IPC.CosmicIpc.ModeAgenda, currentMode, new Vector2(90, 28)))
                     ice.SetMode(IPC.CosmicIpc.ModeAgenda);
 
                 ImGui.Spacing();
@@ -425,6 +428,8 @@ public static class CosmicTab
 
             var config = Expedition.Config;
 
+            Theme.PushCheckboxStyle();
+
             // Stop after current mission
             if (ImGui.Checkbox("Stop after current mission##stopAfter", ref stopAfterCurrent))
                 SaveConfig(config);
@@ -440,11 +445,13 @@ public static class CosmicTab
             {
                 ImGui.SameLine(280);
                 ImGui.SetNextItemWidth(100);
+                Theme.PushFrameStyle();
                 if (ImGui.InputInt("##cosmoCapVal", ref cosmoCreditsCap, 500, 1000))
                 {
                     cosmoCreditsCap = Math.Clamp(cosmoCreditsCap, 0, 99999);
                     SaveConfig(config);
                 }
+                Theme.PopFrameStyle();
             }
 
             ImGui.Spacing();
@@ -456,11 +463,13 @@ public static class CosmicTab
             {
                 ImGui.SameLine(280);
                 ImGui.SetNextItemWidth(100);
+                Theme.PushFrameStyle();
                 if (ImGui.InputInt("##lunarCapVal", ref lunarCreditsCap, 500, 1000))
                 {
                     lunarCreditsCap = Math.Clamp(lunarCreditsCap, 0, 99999);
                     SaveConfig(config);
                 }
+                Theme.PopFrameStyle();
             }
 
             ImGui.Spacing();
@@ -472,8 +481,10 @@ public static class CosmicTab
             {
                 ImGui.SameLine(280);
                 ImGui.SetNextItemWidth(100);
+                Theme.PushFrameStyle();
                 if (ImGui.SliderInt("##targetLvlStop", ref targetLevel, 10, 100))
                     SaveConfig(config);
+                Theme.PopFrameStyle();
             }
 
             ImGui.Spacing();
@@ -485,11 +496,13 @@ public static class CosmicTab
             {
                 ImGui.SameLine(280);
                 ImGui.SetNextItemWidth(120);
+                Theme.PushFrameStyle();
                 if (ImGui.InputInt("##cosmicScoreVal", ref cosmicScoreCap, 50000, 100000))
                 {
                     cosmicScoreCap = Math.Clamp(cosmicScoreCap, 0, 9999999);
                     SaveConfig(config);
                 }
+                Theme.PopFrameStyle();
             }
 
             ImGui.Spacing();
@@ -507,6 +520,8 @@ public static class CosmicTab
                 SaveConfig(config);
             ImGui.SameLine(0, Theme.Pad);
             ImGui.TextColored(Theme.TextMuted, "Debug: accepts mission but doesn't run it");
+
+            Theme.PopCheckboxStyle();
 
             ImGui.Spacing();
         }
@@ -527,6 +542,8 @@ public static class CosmicTab
                     "These control auto-turnin, job rotation, and job swapping during turnin.");
                 ImGui.Spacing();
                 ImGui.Spacing();
+
+                Theme.PushCheckboxStyle();
 
                 // Turnin relic
                 if (ImGui.Checkbox("Turnin if relic is complete##turninRelic", ref turninRelic))
@@ -595,6 +612,7 @@ public static class CosmicTab
                         }
                     }
 
+                    Theme.PushFrameStyle();
                     if (ImGui.BeginCombo("##battleJob", currentBattleJobName))
                     {
                         foreach (var kvp in BattleJobs)
@@ -610,6 +628,7 @@ public static class CosmicTab
                         }
                         ImGui.EndCombo();
                     }
+                    Theme.PopFrameStyle();
 
                     ImGui.Unindent(Theme.PadLarge);
                 }
@@ -622,6 +641,8 @@ public static class CosmicTab
                 ImGui.SameLine(0, Theme.Pad);
                 ImGui.TextColored(Theme.TextMuted, "Runs /stylist after turnin to slot upgraded tool");
 
+                Theme.PopCheckboxStyle();
+
                 ImGui.Spacing();
             }
             Theme.EndCardAuto();
@@ -631,6 +652,18 @@ public static class CosmicTab
         }
 
         ImGui.EndChild();
+    }
+
+    /// <summary>
+    /// Draws a mode quick-switch button that highlights when it matches the current ICE mode.
+    /// </summary>
+    private static bool ModeButton(string label, int mode, int currentMode, Vector2 size)
+    {
+        if (mode == currentMode)
+            return Theme.ColoredButton(label, size,
+                new Vector4(0.20f, 0.40f, 0.65f, 1.00f), Theme.TextPrimary);
+        else
+            return Theme.SecondaryButton(label, size);
     }
 
     private static readonly Dictionary<string, uint> BattleJobs = new()
@@ -903,6 +936,7 @@ public static class CosmicTab
             ImGui.Spacing();
             ImGui.Spacing();
 
+            Theme.PushCheckboxStyle();
             if (ImGui.Checkbox("Auto-use food (Well Fed)##cosmicAutoFood", ref cosmicAutoFood))
                 SaveConfig(Expedition.Config);
             ImGui.SameLine(0, Theme.Pad);
@@ -914,6 +948,7 @@ public static class CosmicTab
                 SaveConfig(Expedition.Config);
             ImGui.SameLine(0, Theme.Pad);
             ImGui.TextColored(Theme.TextMuted, "Uses best medicine when buff missing or <60s");
+            Theme.PopCheckboxStyle();
 
             ImGui.Spacing();
 
@@ -955,8 +990,10 @@ public static class CosmicTab
             ImGui.TextColored(Theme.TextSecondary, "Target Level");
             ImGui.SameLine(160);
             ImGui.SetNextItemWidth(120);
+            Theme.PushFrameStyle();
             if (ImGui.SliderInt("##targetLvl", ref targetLevel, 10, 100))
                 SaveConfig(Expedition.Config);
+            Theme.PopFrameStyle();
 
             ImGui.Spacing();
             ImGui.Spacing();
@@ -1142,6 +1179,7 @@ public static class CosmicTab
 
     private static void DrawJobCards(bool gatherers)
     {
+        Theme.PushCheckboxStyle();
         foreach (var job in AllJobs)
         {
             if (job.IsGatherer != gatherers) continue;
@@ -1203,6 +1241,7 @@ public static class CosmicTab
 
             ImGui.PopID();
         }
+        Theme.PopCheckboxStyle();
     }
 
     // ──────────────────────────────────────────────
@@ -1341,8 +1380,10 @@ public static class CosmicTab
             ImGui.Spacing();
 
             // Master toggle
+            Theme.PushCheckboxStyle();
             if (ImGui.Checkbox("Enable fishing preset overrides##cosmicFishing", ref cosmicFishingOverrideEnabled))
                 SaveConfig(Expedition.Config);
+            Theme.PopCheckboxStyle();
 
             ImGui.Spacing();
 
@@ -1396,6 +1437,7 @@ public static class CosmicTab
             ImGui.Spacing();
 
             // Mission ID input
+            Theme.PushFrameStyle();
             ImGui.TextColored(Theme.TextSecondary, "Mission ID");
             ImGui.SameLine(120);
             ImGui.SetNextItemWidth(120);
@@ -1408,6 +1450,7 @@ public static class CosmicTab
             ImGui.SameLine(120);
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 80);
             ImGui.InputText("##fishPresetStr", ref fishingPresetImportText, 65536);
+            Theme.PopFrameStyle();
 
             ImGui.Spacing();
 
@@ -1437,6 +1480,7 @@ public static class CosmicTab
             ImGui.TextColored(Theme.TextSecondary, "Or import as a type-level default:");
             ImGui.Spacing();
 
+            Theme.PushFrameStyle();
             ImGui.TextColored(Theme.TextSecondary, "Mission Type");
             ImGui.SameLine(120);
             ImGui.SetNextItemWidth(200);
@@ -1458,6 +1502,7 @@ public static class CosmicTab
             ImGui.SameLine(120);
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 80);
             ImGui.InputText("##fishTypePresetStr", ref fishingPresetTypeDefaultText, 65536);
+            Theme.PopFrameStyle();
 
             ImGui.Spacing();
 
@@ -1578,8 +1623,10 @@ public static class CosmicTab
             ImGui.TextColored(Theme.TextSecondary, "Injection Delay (ms)");
             ImGui.SameLine(200);
             ImGui.SetNextItemWidth(200);
+            Theme.PushFrameStyle();
             if (ImGui.SliderInt("##fishInjectionDelay", ref cosmicFishingInjectionDelayMs, 200, 2000))
                 SaveConfig(Expedition.Config);
+            Theme.PopFrameStyle();
             Theme.HelpMarker(
                 "Delay before injecting presets after ICE enters a fishing mission.\n\n" +
                 "ICE loads its presets in ~450ms (150ms clear + 100ms per preset).\n" +

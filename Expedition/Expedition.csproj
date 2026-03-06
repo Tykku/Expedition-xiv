@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Authors>Expedition Contributors</Authors>
-    <Version>2.1.1.0</Version>
+    <Version>2.2.0.0</Version>
     <Description>Automated recipe workflow orchestrator - gathers and crafts any item via GatherBuddy Reborn and Artisan.</Description>
     <RootNamespace>Expedition</RootNamespace>
     <AssemblyName>Expedition</AssemblyName>
@@ -14,6 +14,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
+
+  <!-- Copy to bin\Debug\ so Dalamud's file watcher triggers hot-reload -->
+  <Target Name="CopyToDevPluginPath" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)bin\Debug\" SkipUnchangedFiles="false" />
+  </Target>
 
   <!-- Dalamud Plugin Manifest Properties -->
   <PropertyGroup>

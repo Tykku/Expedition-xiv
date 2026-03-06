@@ -15,7 +15,7 @@ public static class Sidebar
     private static readonly (string Group, string Label, string[] Items)[] Groups =
     {
         ("workflow", "Workflow", new[] { "Browse", "Recipe", "Gathering", "Workflow", "Log" }),
-        ("specialized", "Specialized", new[] { "Diadem", "Cosmic", "Fishing" }),
+        ("specialized", "Specialized", new[] { "Diadem", "Cosmic", "Fishing", "Scrip" }),
         ("info", "Info & Tools", new[] { "Insights", "Changelog", "Settings" }),
     };
 
@@ -30,6 +30,7 @@ public static class Sidebar
         ["Diadem"]    = FontAwesomeIcon.Crown,            // Crown (diadem = crown)
         ["Cosmic"]    = FontAwesomeIcon.Globe,            // Globe / celestial
         ["Fishing"]   = FontAwesomeIcon.Fish,             // Fish
+        ["Scrip"]     = FontAwesomeIcon.Coins,            // Coins / currency
         ["Insights"]  = FontAwesomeIcon.Lightbulb,        // Lightbulb / insights
         ["Changelog"] = FontAwesomeIcon.ClipboardList,    // Clipboard / updates
         ["Settings"]  = FontAwesomeIcon.Cog,              // Gear / configuration

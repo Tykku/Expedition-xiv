@@ -515,6 +515,111 @@ public static class Theme
         return ColoredButton(label, size, new Vector4(0.25f, 0.25f, 0.30f, 1.00f), TextSecondary);
     }
 
+    // --- Styled Control Helpers ---
+
+    // Frame/input styling colors — high contrast for visibility
+    private static readonly Vector4 FrameBg = new(0.08f, 0.08f, 0.10f, 1.00f);
+    private static readonly Vector4 FrameBgHovered = new(0.14f, 0.16f, 0.22f, 1.00f);
+    private static readonly Vector4 FrameBgActive = new(0.10f, 0.12f, 0.18f, 1.00f);
+    private static readonly Vector4 FrameBorder = new(0.40f, 0.45f, 0.55f, 0.80f);
+    private static readonly Vector4 CheckMarkColor = new(0.30f, 0.80f, 0.50f, 1.00f);
+    private static readonly Vector4 CheckboxBgChecked = new(0.15f, 0.25f, 0.20f, 1.00f);
+
+    /// <summary>
+    /// Pushes styled colors for frames (combos, inputs, sliders).
+    /// Must pair with PopFrameStyle().
+    /// </summary>
+    public static void PushFrameStyle()
+    {
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, FrameBg);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, FrameBgHovered);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, FrameBgActive);
+        ImGui.PushStyleColor(ImGuiCol.Border, FrameBorder);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Accent);
+        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, new Vector4(0.50f, 0.80f, 1.00f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.20f, 0.25f, 1.00f));       // +/- buttons on InputInt
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.28f, 0.35f, 1.00f));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, RoundingSmall);
+    }
+
+    /// <summary>
+    /// Pops styled frame colors. Must pair with PushFrameStyle().
+    /// </summary>
+    public static void PopFrameStyle()
+    {
+        ImGui.PopStyleVar(2);
+        ImGui.PopStyleColor(8);
+    }
+
+    /// <summary>
+    /// Pushes styled colors for checkboxes with green check marks and visible borders.
+    /// Must pair with PopCheckboxStyle().
+    /// </summary>
+    public static void PushCheckboxStyle()
+    {
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.10f, 0.10f, 0.12f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.18f, 0.22f, 0.18f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, CheckboxBgChecked);
+        ImGui.PushStyleColor(ImGuiCol.CheckMark, CheckMarkColor);
+        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.35f, 0.40f, 0.45f, 0.80f));
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3.0f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(3, 3));
+    }
+
+    /// <summary>
+    /// Pops styled checkbox colors. Must pair with PushCheckboxStyle().
+    /// </summary>
+    public static void PopCheckboxStyle()
+    {
+        ImGui.PopStyleVar(3);
+        ImGui.PopStyleColor(5);
+    }
+
+    /// <summary>
+    /// Draws a toggle switch with green/dim track and white knob.
+    /// Returns true when the value changes.
+    /// </summary>
+    public static bool ToggleSwitch(string id, string label, ref bool value)
+    {
+        var pos = ImGui.GetCursorScreenPos();
+        var dl = ImGui.GetWindowDrawList();
+
+        var height = ImGui.GetFrameHeight() * 0.75f;
+        var width = height * 1.8f;
+        var radius = height * 0.5f;
+
+        var pressed = ImGui.InvisibleButton($"##{id}_toggle", new Vector2(width, height));
+        if (pressed)
+            value = !value;
+
+        var hov = ImGui.IsItemHovered();
+
+        // Track color: green when on, dim when off
+        var trackColor = value
+            ? ImGui.ColorConvertFloat4ToU32(new Vector4(
+                hov ? 0.35f : 0.25f, hov ? 0.85f : 0.75f, hov ? 0.40f : 0.30f, 1f))
+            : ImGui.ColorConvertFloat4ToU32(new Vector4(
+                hov ? 0.35f : 0.25f, hov ? 0.35f : 0.25f, hov ? 0.40f : 0.30f, 1f));
+
+        // Draw rounded track
+        dl.AddRectFilled(pos, new Vector2(pos.X + width, pos.Y + height), trackColor, radius);
+
+        // Draw knob (simple snap, no animation state needed)
+        var knobX = value ? pos.X + width - radius : pos.X + radius;
+        dl.AddCircleFilled(new Vector2(knobX, pos.Y + radius), radius - 1.5f,
+            ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 1f)));
+
+        if (!string.IsNullOrEmpty(label))
+        {
+            ImGui.SameLine(0, PadSmall);
+            ImGui.Text(label);
+        }
+
+        return pressed;
+    }
+
     /// <summary>
     /// Draws a tooltip with a help marker (?).
     /// </summary>

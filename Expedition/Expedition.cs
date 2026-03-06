@@ -13,6 +13,7 @@ using Expedition.Inventory;
 using Expedition.IPC;
 using Expedition.PlayerState;
 using Expedition.RecipeResolver;
+using Expedition.Scrip;
 using Expedition.UI;
 using Expedition.Workflow;
 
@@ -38,6 +39,8 @@ public sealed class Expedition : IDalamudPlugin
     public CraftingOrchestrator CraftingOrchestrator { get; }
     public WorkflowEngine WorkflowEngine { get; }
     public InsightsEngine InsightsEngine { get; }
+    public ScripDataResolver ScripDataResolver { get; }
+    public ScripFarmingSession ScripFarmingSession { get; }
     public DiademSession DiademSession { get; } = new();
     public DiademNavigator DiademNavigator { get; private set; } = null!;
     public FishingSession FishingSession { get; private set; } = null!;
@@ -66,8 +69,9 @@ public sealed class Expedition : IDalamudPlugin
         // Initialize Diadem item database (validates against Lumina)
         DiademItemDatabase.Initialize();
 
-        // Initialize activation key validation
-        ActivationService.Initialize(Config);
+        // Initialize activation key validation (only if user has accepted the data agreement)
+        if (Config.DataConsentGiven)
+            ActivationService.Initialize(Config);
 
         // Initialize consumable database for auto-food/pots
         ConsumableManager.BuildDatabase();
@@ -90,6 +94,9 @@ public sealed class Expedition : IDalamudPlugin
 
         InsightsEngine = new InsightsEngine();
 
+        ScripDataResolver = new ScripDataResolver();
+        ScripFarmingSession = new ScripFarmingSession(Ipc, GatheringOrchestrator, CraftingOrchestrator, RecipeResolver);
+
         mainWindow = new MainWindow(this);
         overlayWindow = new OverlayWindow(WorkflowEngine, this);
 
@@ -99,6 +106,7 @@ public sealed class Expedition : IDalamudPlugin
                           "/expedition activate <key> — Activate the plugin with a license key.\n" +
                           "/expedition craft <item name> [quantity] — Start a full gather+craft workflow.\n" +
                           "/expedition stop — Stop the current workflow.\n" +
+                          "/expedition panic — Emergency stop all (GBR, Artisan, vnavmesh, all sessions).\n" +
                           "/expedition status — Show current workflow status.\n" +
                           "/expedition fish — Toggle Freestyle Catch fishing session.",
         });
@@ -130,6 +138,7 @@ public sealed class Expedition : IDalamudPlugin
         DalamudApi.CommandManager.RemoveHandler(CommandAlias);
 
         InventoryManager.UnsubscribeInventoryEvents();
+        ScripFarmingSession.Dispose();
         CosmicFishingMonitor.Dispose();
         CosmicFishingPresetStore.Save();
         FishingSession.Dispose();
@@ -152,6 +161,12 @@ public sealed class Expedition : IDalamudPlugin
             switch (parts[0].ToLowerInvariant())
             {
                 case "activate":
+                    if (!Config.DataConsentGiven)
+                    {
+                        DalamudApi.ChatGui.PrintError("[Expedition] Please open the plugin window and accept the data agreement first.");
+                        mainWindow.Toggle();
+                        return;
+                    }
                     HandleActivateCommand(parts.Length > 1 ? parts[1] : string.Empty);
                     return;
 
@@ -184,6 +199,11 @@ public sealed class Expedition : IDalamudPlugin
             case "stop":
                 WorkflowEngine.Cancel();
                 DalamudApi.ChatGui.Print("[Expedition] Workflow stopped.");
+                break;
+
+            case "panic":
+            case "kill":
+                EmergencyStop();
                 break;
 
             case "status":
@@ -274,6 +294,84 @@ public sealed class Expedition : IDalamudPlugin
         }
     }
 
+    /// <summary>
+    /// Emergency stop: kills GBR auto-gather, Artisan crafting, vnavmesh pathing,
+    /// and stops all active Expedition sessions/workflows immediately.
+    /// </summary>
+    public void EmergencyStop()
+    {
+        var stopped = new List<string>();
+
+        // Stop GBR auto-gather
+        try
+        {
+            if (Ipc.GatherBuddy.IsAvailable && Ipc.GatherBuddy.GetAutoGatherEnabled())
+            {
+                Ipc.GatherBuddy.SetAutoGatherEnabled(false);
+                stopped.Add("GBR AutoGather");
+            }
+        }
+        catch { /* best effort */ }
+
+        // Stop Artisan (endurance + stop request)
+        try
+        {
+            if (Ipc.Artisan.IsAvailable)
+            {
+                if (Ipc.Artisan.GetEnduranceStatus())
+                {
+                    Ipc.Artisan.SetEnduranceStatus(false);
+                    stopped.Add("Artisan Endurance");
+                }
+                if (Ipc.Artisan.GetIsBusy())
+                {
+                    Ipc.Artisan.SetStopRequest(true);
+                    stopped.Add("Artisan Crafting");
+                }
+            }
+        }
+        catch { /* best effort */ }
+
+        // Stop vnavmesh pathing
+        try
+        {
+            if (Ipc.Vnavmesh.IsAvailable)
+            {
+                Ipc.Vnavmesh.Stop();
+                stopped.Add("vnavmesh");
+            }
+        }
+        catch { /* best effort */ }
+
+        // Stop Expedition workflow engine
+        if (WorkflowEngine.CurrentState != Workflow.WorkflowState.Idle)
+        {
+            WorkflowEngine.Cancel();
+            stopped.Add("Workflow");
+        }
+
+        // Stop scrip farming session
+        if (ScripFarmingSession.IsActive)
+        {
+            ScripFarmingSession.Stop();
+            stopped.Add("Scrip Farm");
+        }
+
+        // Stop fishing session
+        if (FishingSession.IsActive)
+        {
+            FishingSession.Stop();
+            stopped.Add("Fishing");
+        }
+
+        if (stopped.Count > 0)
+            DalamudApi.ChatGui.Print($"[Expedition] Emergency stop: {string.Join(", ", stopped)}");
+        else
+            DalamudApi.ChatGui.Print("[Expedition] Emergency stop: nothing was running.");
+
+        DalamudApi.Log.Warning($"[Expedition] Emergency stop triggered. Stopped: {string.Join(", ", stopped)}");
+    }
+
     private void PrintStatus()
     {
         var state = WorkflowEngine.CurrentState;
@@ -313,6 +411,7 @@ public sealed class Expedition : IDalamudPlugin
         WorkflowEngine.Update();
         DiademNavigator.Update();
         FishingSession.Update();
+        ScripFarmingSession.Update();
 
         // Cosmic fishing preset injection — monitors ICE state and overrides AutoHook presets
         if (Config.CosmicFishingOverrideEnabled && CosmicTab.IsSessionActive)

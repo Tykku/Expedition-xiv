@@ -35,6 +35,9 @@ public sealed class MainWindow
     private string gatherSearchQuery = string.Empty;
     private List<GatherableItemInfo> gatherSearchResults = new();
 
+    // Data consent state
+    private bool consentScrolledToBottom;
+
     // Activation prompt state
     private string activationKeyInput = string.Empty;
     private string activationError = string.Empty;
@@ -102,6 +105,14 @@ public sealed class MainWindow
         }
         ImGui.PopStyleVar();
 
+        // Gate behind data consent agreement
+        if (!Expedition.Config.DataConsentGiven)
+        {
+            DrawDataConsentPrompt();
+            ImGui.End();
+            return;
+        }
+
         // Gate all functionality behind activation
         if (!ActivationService.IsActivated)
         {
@@ -140,6 +151,7 @@ public sealed class MainWindow
             case "Diadem":    DiademTab.Draw(plugin);                   break;
             case "Cosmic":    CosmicTab.Draw(plugin);                   break;
             case "Fishing":   FishingTab.Draw(plugin);                  break;
+            case "Scrip":     ScripTab.Draw(plugin);                   break;
             case "Insights":  InsightsTab.Draw(plugin.InsightsEngine);  break;
             case "Changelog": ChangelogTab.Draw();                      break;
             case "Settings":  SettingsTab.Draw(Expedition.Config);      break;
@@ -150,6 +162,131 @@ public sealed class MainWindow
     // ──────────────────────────────────────────────
     // Activation Prompt
     // ──────────────────────────────────────────────
+
+    private void DrawDataConsentPrompt()
+    {
+        var avail = ImGui.GetContentRegionAvail();
+
+        // Center content vertically
+        var contentHeight = 440f;
+        var offsetY = Math.Max(0, (avail.Y - contentHeight) / 2);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + offsetY);
+
+        // Plugin icon centered at top
+        var wrap = DalamudApi.TextureProvider
+            .GetFromManifestResource(Assembly.GetExecutingAssembly(), "Expedition.Images.icon.png")
+            .GetWrapOrDefault();
+        if (wrap != null)
+        {
+            const float iconSize = 64f;
+            var iconOffsetX = (avail.X - iconSize) / 2;
+            if (iconOffsetX > 0) ImGui.SetCursorPosX(ImGui.GetCursorPosX() + iconOffsetX);
+            ImGui.Image(wrap.Handle, new Vector2(iconSize, iconSize));
+            ImGui.Spacing();
+        }
+
+        // Title
+        var title = "Data Usage Agreement";
+        var titleSize = ImGui.CalcTextSize(title);
+        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMin().X + (avail.X - titleSize.X) / 2);
+        ImGui.TextColored(Theme.Gold, title);
+
+        var subtitle = "Please review before continuing";
+        var subtitleSize = ImGui.CalcTextSize(subtitle);
+        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMin().X + (avail.X - subtitleSize.X) / 2);
+        ImGui.TextColored(Theme.TextSecondary, subtitle);
+
+        ImGui.Spacing();
+
+        // Scrollable agreement text
+        var boxWidth = Math.Min(600f, avail.X - 40);
+        var boxOffsetX = (avail.X - boxWidth) / 2;
+        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMin().X + boxOffsetX);
+
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.CardBg);
+        if (ImGui.BeginChild("##DataConsent", new Vector2(boxWidth, 240), true))
+        {
+            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X);
+
+            ImGui.TextColored(Theme.Accent, "What data is collected");
+            ImGui.Spacing();
+            ImGui.TextUnformatted(
+                "Expedition generates a machine identifier to bind your activation key to one device. " +
+                "This ID is a one-way SHA-256 hash derived from your Windows machine name, system GUID, " +
+                "and OS username. The raw values are never sent to the server — only the hash.");
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.TextColored(Theme.Accent, "What is sent to the activation server");
+            ImGui.Spacing();
+            ImGui.TextUnformatted(
+                "When you activate or refresh your session, the plugin contacts the Expedition server with:\n" +
+                "  • Your activation key\n" +
+                "  • Your machine ID (hash)\n" +
+                "  • The plugin version\n\n" +
+                "This data is used solely to validate your activation key and ensure one key is used on one device. " +
+                "No gameplay data, character information, or personal files are collected or transmitted.");
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.TextColored(Theme.Accent, "Third-party services");
+            ImGui.Spacing();
+            ImGui.TextUnformatted(
+                "The plugin also contacts the following public APIs for game data. " +
+                "No activation key or personal data is included in these requests:\n" +
+                "  • Universalis (universalis.app) — market board prices\n" +
+                "  • Garland Tools (garlandtools.org) — item/mob/NPC data");
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.TextColored(Theme.Accent, "Local storage");
+            ImGui.Spacing();
+            ImGui.TextUnformatted(
+                "Your activation key, session token, and machine ID hash are saved in plaintext in " +
+                "Dalamud's plugin configuration directory. No additional encryption is applied beyond " +
+                "your Windows user-level file permissions.");
+
+            ImGui.PopTextWrapPos();
+
+            // Track if user has scrolled to the bottom
+            if (ImGui.GetScrollY() >= ImGui.GetScrollMaxY() - 5)
+                consentScrolledToBottom = true;
+        }
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+
+        ImGui.Spacing();
+
+        // Buttons centered
+        var totalButtonWidth = 120f + 10f + 120f;
+        var buttonOffsetX = (avail.X - totalButtonWidth) / 2;
+        ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMin().X + buttonOffsetX);
+
+        ImGui.BeginDisabled(!consentScrolledToBottom);
+        if (Theme.PrimaryButton("I Agree", new Vector2(120, 32)))
+        {
+            Expedition.Config.DataConsentGiven = true;
+            Expedition.Config.Save();
+            ActivationService.Initialize(Expedition.Config);
+        }
+        ImGui.EndDisabled();
+
+        ImGui.SameLine(0, 10);
+
+        if (Theme.SecondaryButton("Decline", new Vector2(120, 32)))
+        {
+            IsOpen = false;
+        }
+
+        if (!consentScrolledToBottom)
+        {
+            ImGui.Spacing();
+            var hint = "Scroll to the bottom to enable the agree button.";
+            var hintSize = ImGui.CalcTextSize(hint);
+            ImGui.SetCursorPosX(ImGui.GetWindowContentRegionMin().X + (avail.X - hintSize.X) / 2);
+            ImGui.TextColored(Theme.TextMuted, hint);
+        }
+    }
 
     private void DrawActivationPrompt()
     {
@@ -337,6 +474,17 @@ public sealed class MainWindow
                 plugin.Ipc.RefreshAvailability();
             }
         }
+
+        // Emergency stop button — right-aligned in menu bar
+        var panicLabel = "STOP ALL";
+        var panicSize = ImGui.CalcTextSize(panicLabel).X + 16;
+        ImGui.SameLine(ImGui.GetWindowWidth() - panicSize - 16);
+        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.60f, 0.10f, 0.10f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.80f, 0.15f, 0.15f, 1.00f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.95f, 0.20f, 0.20f, 1.00f));
+        if (ImGui.SmallButton(panicLabel))
+            plugin.EmergencyStop();
+        ImGui.PopStyleColor(3);
 
         ImGui.EndMenuBar();
     }

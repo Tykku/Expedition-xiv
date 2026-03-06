@@ -128,7 +128,16 @@ public sealed class Configuration : IPluginConfiguration
     public bool FishingUseCordials { get; set; } = true;
     public bool FishingPreferHiCordials { get; set; } = true;
 
+    // --- Scrip Farming ---
+    public int ScripFarmingType { get; set; } = 2; // ScripType enum: 0=PurpleCrafter, 1=PurpleGatherer, 2=OrangeCrafter, 3=OrangeGatherer
+    public uint ScripFarmingCollectableId { get; set; } = 0; // 0 = auto-pick best
+    public int ScripFarmingGoal { get; set; } = 4000;
+    public int ScripFarmingBatchSize { get; set; } = 10;
+    public bool ScripTeleportBeforeCrafting { get; set; } = false;
+    public int ScripTeleportDestination { get; set; } = 0; // 0=Eulmore, 1=FC Estate, 2=Private Estate, 3=Apartment
+
     // --- Activation ---
+    public bool DataConsentGiven { get; set; } = false;
     public string ActivationKey { get; set; } = string.Empty;
     public string SessionToken { get; set; } = string.Empty;
     public string MachineId { get; set; } = string.Empty;
