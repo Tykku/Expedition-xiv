@@ -431,15 +431,12 @@ public sealed class Expedition : IDalamudPlugin
             // Deferred ICE start — enables ICE after consumables have been used
             CosmicTab.CheckDeferredIceStart(this);
 
-            // Auto-consume food/pots during normal workflow (Gathering/Crafting phases)
+            // Auto-consume food/pots only during crafting phases (not gathering — buffs would be wasted)
             if ((Config.AutoFood || Config.AutoPots) &&
-                WorkflowEngine.CurrentState is Workflow.WorkflowState.Gathering
-                                            or Workflow.WorkflowState.Crafting
-                                            or Workflow.WorkflowState.PreparingGather
+                WorkflowEngine.CurrentState is Workflow.WorkflowState.Crafting
                                             or Workflow.WorkflowState.PreparingCraft)
             {
-                var isGatherer = JobSwitchManager.IsOnGatherer();
-                ConsumableManager.Update(BuffTracker, isGatherer, Config.AutoFood, Config.AutoPots);
+                ConsumableManager.Update(BuffTracker, isGatherer: false, Config.AutoFood, Config.AutoPots);
             }
 
             if (Config.InsightsAutoRefresh)

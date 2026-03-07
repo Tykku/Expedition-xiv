@@ -1070,6 +1070,8 @@ public sealed class GatheringOrchestrator
     /// <summary>
     /// Returns true if the player is in a blocking state (crafting, cutscene, teleporting, etc.)
     /// that would prevent GBR from teleporting or gathering.
+    /// Note: InFlight and Jumping are intentionally excluded — GBR handles its own
+    /// flight navigation and including them blocks gathering while GBR flies to nodes.
     /// </summary>
     private static bool IsPlayerOccupied()
     {
@@ -1078,8 +1080,6 @@ public sealed class GatheringOrchestrator
             || cond[ConditionFlag.PreparingToCraft]
             || cond[ConditionFlag.ExecutingCraftingAction]
             || cond[ConditionFlag.Casting]
-            || cond[ConditionFlag.Jumping]
-            || cond[ConditionFlag.InFlight]
             || cond[ConditionFlag.Occupied]
             || cond[ConditionFlag.Occupied30]
             || cond[ConditionFlag.Occupied33]
