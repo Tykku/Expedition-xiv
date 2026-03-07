@@ -472,65 +472,76 @@ public static class SettingsTab
 
     private static void DrawBuffSection(Configuration config)
     {
-        Theme.SectionHeader("Food & Buffs", Theme.Accent, 60083);
-        ImGui.Spacing();
-
-        Theme.BeginCardAuto("buff_warn_card");
-        ImGui.TextColored(Theme.TextMuted, "Monitor food and medicine buff timers.");
-        ImGui.Spacing();
-
-        var warnMissing = config.WarnOnMissingFood;
-        if (ImGui.Checkbox("Warn when no food buff active", ref warnMissing))
+        try
         {
-            config.WarnOnMissingFood = warnMissing;
-            config.Save();
-        }
-        Theme.HelpMarker("Show a warning in the log if you start a workflow without a food buff.");
+            Theme.SectionHeader("Food & Buffs", Theme.Accent);
+            ImGui.Spacing();
 
-        var warnExpiring = config.WarnOnFoodExpiring;
-        if (ImGui.Checkbox("Warn when food buff expiring", ref warnExpiring))
-        {
-            config.WarnOnFoodExpiring = warnExpiring;
-            config.Save();
-        }
-        Theme.HelpMarker("Alert when food buff is about to expire during a long session.");
+            Theme.BeginCardAuto("buff_warn_card");
+            ImGui.TextColored(Theme.TextMuted, "Monitor food and medicine buff timers.");
+            ImGui.Spacing();
 
-        if (config.WarnOnFoodExpiring)
-        {
-            ImGui.Indent(20);
-            var expirySec = config.FoodExpiryWarningSeconds;
-            ImGui.SetNextItemWidth(150);
-            if (ImGui.InputInt("Warning threshold (sec)", ref expirySec))
+            var warnMissing = config.WarnOnMissingFood;
+            if (ImGui.Checkbox("Warn when no food buff active", ref warnMissing))
             {
-                config.FoodExpiryWarningSeconds = Math.Clamp(expirySec, 30, 600);
+                config.WarnOnMissingFood = warnMissing;
                 config.Save();
             }
-            ImGui.Unindent(20);
+            Theme.HelpMarker("Show a warning in the log if you start a workflow without a food buff.");
+
+            var warnExpiring = config.WarnOnFoodExpiring;
+            if (ImGui.Checkbox("Warn when food buff expiring", ref warnExpiring))
+            {
+                config.WarnOnFoodExpiring = warnExpiring;
+                config.Save();
+            }
+            Theme.HelpMarker("Alert when food buff is about to expire during a long session.");
+
+            if (config.WarnOnFoodExpiring)
+            {
+                ImGui.Indent(20);
+                var expirySec = config.FoodExpiryWarningSeconds;
+                ImGui.SetNextItemWidth(150);
+                if (ImGui.InputInt("Warning threshold (sec)", ref expirySec))
+                {
+                    config.FoodExpiryWarningSeconds = Math.Clamp(expirySec, 30, 600);
+                    config.Save();
+                }
+                ImGui.Unindent(20);
+            }
+
+            Theme.EndCardAuto();
+
+            ImGui.Spacing();
+
+            Theme.BeginCardAuto("buff_auto_card");
+            ImGui.TextColored(Theme.TextMuted, "Auto-consume the best available food/pots during workflows.");
+            ImGui.TextColored(Theme.TextMuted, "These are OFF by default. Enable only if you have food/pots in your inventory.");
+            ImGui.Spacing();
+
+            var autoFood = config.AutoFood;
+            if (ImGui.Checkbox("Auto-use food", ref autoFood))
+            {
+                config.AutoFood = autoFood;
+                config.Save();
+            }
+            Theme.HelpMarker("Automatically eat the highest item level food in your inventory when the Well Fed buff is missing or expiring.");
+
+            var autoPots = config.AutoPots;
+            if (ImGui.Checkbox("Auto-use potions/medicine", ref autoPots))
+            {
+                config.AutoPots = autoPots;
+                config.Save();
+            }
+            Theme.HelpMarker("Automatically use the highest item level medicine/syrup in your inventory when the Medicated buff is missing or expiring.");
+
+            Theme.EndCardAuto();
         }
-
-        Theme.EndCardAuto();
-
-        Theme.BeginCardAuto("buff_auto_card");
-        ImGui.TextColored(Theme.TextMuted, "Auto-consume the best available food/pots during workflows.");
-        ImGui.Spacing();
-
-        var autoFood = config.AutoFood;
-        if (ImGui.Checkbox("Auto-use food", ref autoFood))
+        catch (Exception ex)
         {
-            config.AutoFood = autoFood;
-            config.Save();
+            ImGui.TextColored(Theme.Error, $"Error rendering Food & Buffs: {ex.Message}");
+            DalamudApi.Log.Error(ex, "[Settings] DrawBuffSection failed");
         }
-        Theme.HelpMarker("Automatically eat the highest item level food in your inventory when the Well Fed buff is missing or expiring.");
-
-        var autoPots = config.AutoPots;
-        if (ImGui.Checkbox("Auto-use potions/medicine", ref autoPots))
-        {
-            config.AutoPots = autoPots;
-            config.Save();
-        }
-        Theme.HelpMarker("Automatically use the highest item level medicine/syrup in your inventory when the Medicated buff is missing or expiring.");
-
-        Theme.EndCardAuto();
     }
 
     private static void DrawDurabilitySection(Configuration config)
